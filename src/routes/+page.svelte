@@ -1,25 +1,22 @@
 <script>
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { fetchAge } from '$lib';
 
-	let inputValue = '';
+	export let data;
+
+	let inputValue = $page.url.searchParams.get('name') || '';
 	let timeout;
-	let result = null;
-	let loading = false;
 	let progress = 0;
 	let progressInterval;
 
 	const DEBOUNCE_MS = 700;
 	const PROGRESS_INTERVAL_MS = 10;
 
-	async function handleFetch(name) {
-		if (!name) {
-			result = null;
-			return;
-		}
-		loading = true;
-		result = await fetchAge(name);
-		loading = false;
-	}
+	$page.subscribe(($page) => {
+		const q = $page.url.searchParams.get('name') || '';
+		if (q !== inputValue) inputValue = q;
+	});
 
 	function onInput(e) {
 		clearTimeout(timeout);
@@ -39,9 +36,18 @@
 		timeout = setTimeout(() => {
 			clearInterval(progressInterval);
 			progress = 100;
-			handleFetch(inputValue);
+			goto(`/?name=${encodeURIComponent(inputValue)}`, { replaceState: true, invalidateAll: true });
 		}, DEBOUNCE_MS);
 	}
+</script>
+
+<script context="module">
+export async function load({ url }) {
+	const name = url.searchParams.get('name');
+	if (!name) return { data: null };
+	const data = await fetchAge(name);
+	return { data };
+}
 </script>
 
 <div class="container">
@@ -60,12 +66,12 @@
 	</div>
 
 	{#if inputValue}
-		{#if loading}
+		{#if $page.url.searchParams.get('name') && !data}
 			<p class="result">Consultando...</p>
-		{:else if result && result.age}
-			<p class="result">Idade estimada para <b>{result.name}</b>: <b>{result.age}</b> anos.</p>
-		{:else if result && result.name}
-			<p class="result">Não foi possível estimar a idade para <b>{result.name}</b>.</p>
+		{:else if data && data.age}
+			<p class="result">Idade estimada para <b>{data.name}</b>: <b>{data.age}</b> anos.</p>
+		{:else if data && data.name}
+			<p class="result">Não foi possível estimar a idade para <b>{data.name}</b>.</p>
 		{/if}
 	{/if}
 </div>
